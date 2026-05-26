@@ -1,0 +1,37 @@
+{
+  "name": "workwexin/wecom",
+  "description": "WeCom (Enterprise WeChat) PHP SDK for message and contacts",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^7.4",
+    "ext-json": "*",
+    "ext-curl": "*",
+    "ext-openssl": "*",
+    "ext-simplexml": "*",
+    "guzzlehttp/guzzle": "^7.0",
+    "guzzlehttp/psr7": "^2.0",
+    "psr/http-client": "^1.0",
+    "psr/log": "^1.1 || ^2.0 || ^3.0",
+    "psr/simple-cache": "^1.0 || ^2.0 || ^3.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^9.6"
+  },
+  "scripts": {
+    "test": "phpunit --colors=always",
+    "lint": "php -l src/WeCom.php && php -l src/Auth/TokenManager.php && php -l src/Cache/FileCache.php && php -l src/Callback/CallbackCrypto.php && php -l src/Config/Config.php && php -l src/Exception/WeComException.php && php -l src/Http/HttpClient.php && php -l src/Service/ApprovalService.php && php -l src/Service/AuthService.php && php -l src/Service/BaseService.php && php -l src/Service/CallbackService.php && php -l src/Service/ContactService.php && php -l src/Service/CustomerContactService.php && php -l src/Service/MessageService.php && php -l src/Service/MiniProgramService.php && php -l src/Service/OaService.php && php -l src/Service/PaymentService.php"
+  },
+  "autoload": {
+    "psr-4": {
+      "WorkWeXin\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "WorkWeXin\\Tests\\": "tests/"
+    }
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}
