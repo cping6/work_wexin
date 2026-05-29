@@ -8,6 +8,7 @@ use WorkWeXin\Auth\TokenManager;
 use WorkWeXin\Cache\FileCache;
 use WorkWeXin\Callback\CallbackCrypto;
 use WorkWeXin\Config\Config;
+use WorkWeXin\Exception\WeComException;
 use WorkWeXin\Http\HttpClient;
 use WorkWeXin\Service\ApprovalService;
 use WorkWeXin\Service\AuthService;
@@ -34,8 +35,23 @@ final class WeCom
     private TokenManager $tokenManager;
     private LoggerInterface $logger;
 
+    public static function make(array $config, string $corpKey = "default", string $appKey = "default"): self
+    {
+        return new self($config, $corpKey, $appKey);
+    }
+
+    public static function fromApp(string $corpId, int $agentId, string $secret, array $options = []): self
+    {
+        return new self(array_merge($options, [
+            "corp_id" => $corpId,
+            "agent_id" => $agentId,
+            "secret" => $secret
+        ]));
+    }
+
     public function __construct(array $config, string $corpKey = "default", string $appKey = "default")
     {
+        $config = self::normalizeConfig($config, $corpKey, $appKey);
         $this->rawConfig = $config;
         $this->config = new Config($config);
         $this->corpKey = $corpKey;
@@ -65,6 +81,21 @@ final class WeCom
     public function forCorpApp(string $corpKey, string $appKey): self
     {
         return new self($this->rawConfig, $corpKey, $appKey);
+    }
+
+    public function sendText(string $content, $to): array
+    {
+        return $this->message()->sendText($content, $this->normalizeRecipients($to));
+    }
+
+    public function sendMarkdown(string $content, $to): array
+    {
+        return $this->message()->sendMarkdown($content, $this->normalizeRecipients($to));
+    }
+
+    public function sendTextCard(string $title, string $description, string $url, $to): array
+    {
+        return $this->message()->sendTextCard($title, $description, $url, $this->normalizeRecipients($to));
     }
 
     public function message(): MessageService
@@ -122,5 +153,104 @@ final class WeCom
     public function getConfig(): array
     {
         return $this->config->getAll();
+    }
+
+    private static function normalizeConfig(array $config, string $corpKey, string $appKey): array
+    {
+        if (isset($config["corps"])) {
+            return $config;
+        }
+
+        $corpId = $config["corp_id"] ?? ($config["corpid"] ?? null);
+        if ($corpId === null || $corpId === "") {
+            return $config;
+        }
+
+        $app = [];
+        if (array_key_exists("agent_id", $config)) {
+            $app["agent_id"] = $config["agent_id"];
+        } elseif (array_key_exists("agentid", $config)) {
+            $app["agent_id"] = $config["agentid"];
+        }
+        if (array_key_exists("secret", $config)) {
+            $app["secret"] = $config["secret"];
+        }
+
+        $corp = [
+            "corp_id" => $corpId,
+            "apps" => [
+                $appKey => $app
+            ]
+        ];
+
+        $callbackToken = $config["callback_token"] ?? null;
+        $encodingAesKey = $config["encoding_aes_key"] ?? ($config["encodingAesKey"] ?? null);
+        if ($callbackToken !== null || $encodingAesKey !== null) {
+            $corp["callback"] = [
+                "token" => (string) $callbackToken,
+                "encoding_aes_key" => (string) $encodingAesKey
+            ];
+        }
+
+        $normalized = [
+            "corps" => [
+                $corpKey => $corp
+            ]
+        ];
+
+        $http = $config["http"] ?? [];
+        foreach (["base_uri", "timeout", "client", "retry"] as $key) {
+            if (array_key_exists($key, $config)) {
+                $http[$key] = $config[$key];
+            }
+        }
+        if ($http !== []) {
+            $normalized["http"] = $http;
+        }
+
+        $cache = $config["cache"] ?? [];
+        if (array_key_exists("cache_path", $config)) {
+            $cache["path"] = $config["cache_path"];
+        }
+        if (array_key_exists("cache_ttl", $config)) {
+            $cache["ttl"] = $config["cache_ttl"];
+        }
+        if (array_key_exists("cache_instance", $config)) {
+            $cache["instance"] = $config["cache_instance"];
+        }
+        if ($cache !== []) {
+            $normalized["cache"] = $cache;
+        }
+
+        if (array_key_exists("logger", $config)) {
+            $normalized["logger"] = $config["logger"];
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeRecipients($to): array
+    {
+        if (is_string($to)) {
+            if ($to === "") {
+                throw new WeComException(0, "recipient is required");
+            }
+
+            return ["touser" => $to];
+        }
+
+        if (!is_array($to)) {
+            throw new WeComException(0, "recipient must be string or array");
+        }
+
+        if ($to === []) {
+            return $to;
+        }
+
+        if (array_keys($to) === range(0, count($to) - 1)) {
+            return ["touser" => implode("|", array_map("strval", $to))];
+        }
+
+        return $to;
     }
 }

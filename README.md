@@ -8,7 +8,45 @@
 composer require workwexin/wecom
 ```
 
+## 快速开始
+
+推荐新项目使用平铺配置，少写嵌套数组：
+
+```php
+use WorkWeXin\WeCom;
+
+$wecom = WeCom::make([
+    "corp_id" => "wx123",
+    "agent_id" => 1000002,
+    "secret" => "app_secret"
+]);
+
+$wecom->sendText("你好", "userid1");
+```
+
+如果只接入一个企业应用，也可以用三参数工厂方法：
+
+```php
+$wecom = WeCom::fromApp("wx123", 1000002, "app_secret");
+
+$wecom->sendMarkdown("**加粗**内容", ["userid1", "userid2"]);
+```
+
+快捷发送方法中，收件人可以传：
+- 字符串：`"userid1"`，自动作为 `touser`
+- 用户列表：`["userid1", "userid2"]`，自动拼成 `userid1|userid2`
+- 完整收件人数组：`["toparty" => "1", "totag" => "tag1"]`
+
+原有服务式调用仍然保留：
+
+```php
+$wecom->message()->sendText("你好", ["touser" => "userid1"]);
+$wecom->contacts()->getUser("userid1");
+```
+
 ## 配置说明
+
+完整多企业、多应用配置仍然支持：
 
 ```php
 $config = [
@@ -55,21 +93,7 @@ $config = [
 - `corps.{corp}.callback.token`：回调 Token
 - `corps.{corp}.callback.encoding_aes_key`：回调 EncodingAESKey
 
-## 快速开始
-
-```php
-use WorkWeXin\WeCom;
-
-$wecom = new WeCom($config, "default", "default");
-
-$wecom->message()->send([
-    "touser" => "userid1|userid2",
-    "msgtype" => "text",
-    "text" => ["content" => "Hello"]
-]);
-```
-
-说明：`agentid` 如果未传，会从配置里的 `agent_id` 自动注入。
+说明：`new WeCom($config, "default", "default")` 和 `WeCom::make($config)` 等价；`agentid` 如果未传，会从配置里的 `agent_id` 自动注入。
 
 ## 应用消息示例
 
