@@ -10,7 +10,7 @@ composer require workwexin/wecom
 
 ## 快速开始
 
-推荐新项目使用平铺配置，少写嵌套数组：
+SDK 推荐按 service 模块调用：先创建 `WeCom` 实例，再进入对应 service 调用方法。
 
 ```php
 use WorkWeXin\WeCom;
@@ -21,7 +21,9 @@ $wecom = WeCom::make([
     "secret" => "app_secret"
 ]);
 
-$wecom->sendText("你好", "userid1");
+$wecom->message()->sendText("你好", ["touser" => "userid1"]);
+$wecom->contacts()->getUser("userid1");
+$wecom->approval()->getTemplateDetail("template_id");
 ```
 
 如果只接入一个企业应用，也可以用三参数工厂方法：
@@ -29,20 +31,33 @@ $wecom->sendText("你好", "userid1");
 ```php
 $wecom = WeCom::fromApp("wx123", 1000002, "app_secret");
 
-$wecom->sendMarkdown("**加粗**内容", ["userid1", "userid2"]);
+$wecom->message()->sendMarkdown("**加粗**内容", ["touser" => "userid1|userid2"]);
 ```
 
-快捷发送方法中，收件人可以传：
-- 字符串：`"userid1"`，自动作为 `touser`
-- 用户列表：`["userid1", "userid2"]`，自动拼成 `userid1|userid2`
-- 完整收件人数组：`["toparty" => "1", "totag" => "tag1"]`
+当前可用 service：
 
-原有服务式调用仍然保留：
+| service | 说明 |
+| --- | --- |
+| `$wecom->message()` | 应用消息 |
+| `$wecom->contacts()` | 通讯录 |
+| `$wecom->auth()` | 身份与登录 |
+| `$wecom->callback()` | 回调加解密 |
+| `$wecom->callbackEvents()` | 回调事件分发 |
+| `$wecom->customerContact()` | 客户联系 |
+| `$wecom->approval()` | 审批 |
+| `$wecom->oa()` | OA：打卡、日程、会议室、待办等 |
+| `$wecom->miniProgram()` | 小程序 |
+| `$wecom->payment()` | 支付 |
+
+应用消息提供少量顶层快捷方法，适合简单发送场景：
 
 ```php
-$wecom->message()->sendText("你好", ["touser" => "userid1"]);
-$wecom->contacts()->getUser("userid1");
+$wecom->sendText("你好", "userid1");
+$wecom->sendMarkdown("**加粗**内容", ["userid1", "userid2"]);
+$wecom->sendTextCard("标题", "描述", "https://example.com", "userid1");
 ```
+
+快捷发送方法中，收件人可以传字符串、用户列表或完整收件人数组。
 
 ## 配置说明
 
@@ -94,6 +109,12 @@ $config = [
 - `corps.{corp}.callback.encoding_aes_key`：回调 EncodingAESKey
 
 说明：`new WeCom($config, "default", "default")` 和 `WeCom::make($config)` 等价；`agentid` 如果未传，会从配置里的 `agent_id` 自动注入。
+
+## Token 与签名说明
+
+- 普通 service 接口调用统一使用 `access_token`。SDK 会通过 `TokenManager` 自动获取、缓存，并在请求中附带 `access_token`。
+- 回调验签与加解密使用企业微信后台配置的 `callback.token` 和 `callback.encoding_aes_key`，不使用接口调用的 `access_token`。
+- 支付签名使用支付 API key，通过 `payment()->sign()` 和 `payment()->verifySignature()` 处理，和 `access_token`、回调 Token 都不是同一个凭证。
 
 ## 应用消息示例
 
